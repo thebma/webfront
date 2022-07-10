@@ -19,6 +19,9 @@ fn main() {
 }
 
 fn execute_file(_file: PathBuf) {
+    let source = fs::read_to_string(file).unwrap();
+    let mut tokenizer = Tokenizer::new(&source);
+    tokenizer.tokenize();
 }
 
 fn run_tests() {
