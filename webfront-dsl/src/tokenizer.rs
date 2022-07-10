@@ -6,7 +6,6 @@ use crate::lexicon::LexiconMatch;
 
 use crate::token::Token;
 
-//TODO AB 03-07-2022 Support UTF-8 and UTF-16 and test if it gets parsed properly.
 pub struct Tokenizer<'slice> {
     source: &'slice[u8],
     lexicon: RefCell<Lexicon>,
@@ -22,41 +21,12 @@ impl<'slice> Tokenizer<'slice> {
         }
     }
 
-    //TODO AB 03-07-2022, horrible solution, fix these "borrow(_mut)"'s. Right now don't have enough Rust knowledge to iron this out.
     pub fn tokenize(&mut self) {
         for token in self.source.iter() {
-            if self.is_whitespace(token) {
-                continue;
-            }
-
-            
             self.lexicon.borrow_mut().advance(token.clone());
-
-            //
-            //  Hitting a whitespace can mean two things:
-            //  a) We are starting to parse a new token, we can ignore it until we hit a non-white space.
-            //  or b) 
-            //
-            if self.is_whitespace(token) {
-                if self.lexicon.borrow().has_value() {
-                    self.try_end_token();
-                }
-            } else {
-                let _exact = self.lexicon.borrow_mut().advance(token.clone());
-
-                
-
-                println!("{:?}", token.clone())
-            }
         }
 
-        //
-        // Handle any remaining content in the lexicon.
-        // Files don't always nicely end with a whitespace.
-        //
-        if self.lexicon.borrow().has_value() {
-            self.try_end_token();
-        }
+        //TODO: Handle remaining values, or implement some kind of EOF function inside lexicon.
     }
 
     fn try_end_token(&mut self) {

@@ -19,7 +19,6 @@ impl Token {
         }
     }
 
-    //TODO AB 03-07-2022: Is there a default way or better way of comparing Vec<u8> or &[u8] to a string?
     pub fn equals(&self, tokens: &[u8]) -> bool {
         let word_bytes = self.word.as_bytes();
 
@@ -36,7 +35,6 @@ impl Token {
         return true;
     }
 
-    //TODO AB 03-07-2022: Is there a default way or better way of starts_with Vec<u8> or &[u8] to a string?
     pub fn starts_with(&self, tokens: &[u8]) -> bool {
         let word_bytes = self.word.as_bytes();
 
