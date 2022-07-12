@@ -1,6 +1,12 @@
+mod tokenizer;
+mod token;
+mod lexicon;
+
 use std::fs;
 use std::path::PathBuf;
 use std::path::Path;
+
+use tokenizer::Tokenizer;
 
 fn main() {
     //TODO AB 26/6: Empty args will still trigger the _ branch of this match.
@@ -18,7 +24,7 @@ fn main() {
     }
 }
 
-fn execute_file(_file: PathBuf) {
+fn execute_file(file: PathBuf) {
     let source = fs::read_to_string(file).unwrap();
     let mut tokenizer = Tokenizer::new(&source);
     tokenizer.tokenize();
