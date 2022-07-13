@@ -1,5 +1,6 @@
 /target
 /doc
 /data
+/.vscode
 *.rlib
 *.lock

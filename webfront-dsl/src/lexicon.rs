@@ -1,43 +1,37 @@
 use crate::token::Token;
 use crate::token::TokenMeaning;
 
-///
 /// Lexicon holds all the grammar for our language.
 /// The Lexicon is namely used to match tokens that are constructed on a per character basis.
 /// To use it:
 /// - For every character call Lexicon::advance(character).
 /// - Lexicon::advance will return wether we resolved it to one keyword, has possibilities or is a unknown token.
 pub struct Lexicon {
-    ///
     /// List of keywords that are available in our language.
     tokens: Vec<Token>,
 
-    ///
     /// The current token we are trying to match to a keyword.
     match_value: Vec<u8>,
 
-    ///
     /// All the possible keywords in our language given the current value of match_token.
     matches: Vec<Token>
 }
 
-///
 ///  LexiconMatch determines if a token has been found, can be found or was illegal.
 ///  If resolved, then we pass the token in that we found.
 #[derive(Debug, Clone)]
 pub enum LexiconMatch {
 
-    /// Resolved to an unique token within the lexicon.
+    /// Used to return a single token with matched one on one.
     Resolved(Token),
 
-    /// Unresolved means that it failed to match anything within the lexicon. Making the subsequent statement invalid.
+    /// Unresolved means that it failed to match anything within the lexicon, but still does has 1 or more potential matches.
     Unresolved(),
 
-    /// Lexicon did not know what to do, has left it unprocessed... which usually is a side effect of errorneous behaviour.
-    Unprocessed()
+    // Used when the given characters does not match to anything and does not have any potential matches.
+    Illegal(), 
 }
 
-//TODO: AB 03-07-22 these "meanings" need to be loaded from file, instead having a massive list in code.
 impl Lexicon {
     pub fn new(tests: bool) -> Self {
         let mut lexicon = Lexicon {
@@ -51,21 +45,14 @@ impl Lexicon {
         };
 
         if tests {
-            lexicon.tokens.push(Token::new("parse", TokenMeaning::TestValue));
-            lexicon.tokens.push(Token::new("ambig", TokenMeaning::TestValue));
-            lexicon.tokens.push(Token::new("ambiguous", TokenMeaning::TestValue));
+            lexicon.tokens.push(Token::new("findme", TokenMeaning::TestValue));
+            lexicon.tokens.push(Token::new("findmetoo", TokenMeaning::TestValue));
+            lexicon.tokens.push(Token::new("findmetoobutlonger", TokenMeaning::TestValue));
+
         }
 
         lexicon.reset();
         return lexicon;
-    }
-
-    pub fn has_value(&self) -> bool {
-        return self.match_value.len() >  0;
-    }
-
-    pub fn get_value(&self) -> Vec<u8> {
-        return self.match_value.clone();
     }
 
     pub fn reset(&mut self) {
@@ -75,140 +62,230 @@ impl Lexicon {
 
     /// Consumes a new character and tries to match the current value.
     pub fn advance(&mut self, character: u8) -> LexiconMatch {
+        //Don't process any whitespaces, as they have no meaning, this isn't python.
+        if self.is_whitespace(&character) {
+            return LexiconMatch::Unresolved();
+        }
+
         self.match_value.push(character);
         self.filter_matches();
 
-        let mut result_match = LexiconMatch::Unresolved();
-
-        //
         //  All our matches are empty, meaning this was an illegal statement.
         if self.matches.len() == 0 {
-            result_match = LexiconMatch::Unresolved();
+            self.reset();
+            return LexiconMatch::Illegal();
         }
-        //
-        //  We had an exact match.
+        //  We only had one possibility, still need to check if this is still the exact same...
         else if self.matches.len() == 1 {
-            result_match = LexiconMatch::Resolved(self.matches.first().unwrap().clone())
+            let found_token = self.matches.first().unwrap().clone();
+
+            if found_token.equals(&self.match_value) {
+                self.reset();
+                return LexiconMatch::Resolved(found_token);
+            }
+            else {
+                return LexiconMatch::Unresolved();
+            }
         }
+        // We still have potential matches.
         else {
-            //Ambiguous match!
-            result_match = LexiconMatch::Unprocessed();
+            return LexiconMatch::Unresolved();
         }
-
-
-        self.reset();
-        return result_match;
     }
 
+    pub fn end_of_source(&self) -> LexiconMatch {
+        //Loop over our matches, check if we have a direct match.
+        if self.matches.len() > 0 {
+            for potential_match in &self.matches {
+                if(potential_match.equals(&self.match_value)) {
+                    let found_token = potential_match.clone();
+                    return LexiconMatch::Resolved(found_token);
+
+                }
+            }
+        }
+
+        return LexiconMatch::Illegal();
+    }
 
     fn filter_matches(&mut self) {
         let mut new_matches = Vec::<Token>::new();
 
         for token in self.matches.iter() {
-            //
-            // If we're matching "bool" and the current value is "boole"...
-            //   token.word.len() = "bool", 4 characters
-            //   self.match_value.len() = "boole", 5 characters
-            // Then we could never match because token.word is smaller than what we currently have.
+
+            //If we have "bool" as a keyword and "bools" as current value...
+            // Then the length will differ and it could never be this value.
             if self.match_value.len() > token.word.len() {
                 continue;
             }
 
-            //
-            //  If we have the following situation:
-            //    token.word = "int"
-            //    self.match_value = "it"
-            //  The token.word does not start_with "it", there for it could never match.
             let word = self.match_value.as_slice();
 
+            //If we have "bignumber" as a keyword and "bin" as current value...
+            // Then we could never match if the word to "bignumber".
             if !token.starts_with(word) {
                 continue;
             }
 
-            //
-            //  Token is still eligible to be matched to something.
-            //  We want to copy this value in our new vector with matches.
             new_matches.push(token.clone());
         }
 
         self.matches = new_matches;
     }
+
+    fn is_whitespace(&self, token: &u8) -> bool {
+        let whitespace_tokens = vec![ 9, 10, 13, 32];
+        return whitespace_tokens.contains(token);
+    } 
 } 
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    // fn setup_lexicon(source: &str) -> Vec<LexiconMatch> {
-    //     let mut lexicon = Lexicon::new(true);
-    //     let mut match_results = Vec::<LexiconMatch>::new();
+    #[test]
+    fn lexicon_match_scope() {
+        let mut lexicon = Lexicon::new(true);
+        let source = "{".as_bytes();
 
-    //     lexicon.reset();
+        let result = lexicon.advance(source[0]);
+        assert_eq!(true, matches!(result, LexiconMatch::Resolved(_)));
+    }
 
-    //     for word_byte in source.bytes() {
-    //         let lexicon_match = lexicon.advance(word_byte);
+    #[test]
+    fn lexicon_match_scope_open_and_close() {
+        let mut lexicon = Lexicon::new(true);
+        let source = "{}".as_bytes();
 
-    //         if let LexiconMatch::Resolved(_) = lexicon_match {
-    //            match_results.push(lexicon_match.clone());
-    //         }
-    //     }
+        let mut result = lexicon.advance(source[0]);
 
-    //     return match_results;
-    // }
+        if let LexiconMatch::Resolved(token) = &result {
+            assert_eq!(true, matches!(token.state, TokenMeaning::OpenScope));
+        }
+        else {
+            assert!(false, "Result 1 was not resolved.")
+        }
 
-    // #[test]
-    // fn lexicon_can_match_scope() {
-    //     let token_match = setup_lexicon("{");
+        result = lexicon.advance(source[1]);
 
-    //     assert_eq!(true, matches!(token_match, LexiconMatch::Resolved(_)));
+        if let LexiconMatch::Resolved(token) = &result {
+            assert_eq!(true, matches!(token.state, TokenMeaning::CloseScope));
+        }
+        else {
+            assert!(false, "Result 2 was not resolved.")
+        }
+    }
 
-    //     if let LexiconMatch::Resolved(token) = &token_match {
-    //         assert_eq!("{", token.word.as_str());
-    //         assert_eq!(true, matches!(token.state, TokenMeaning::OpenScope));
-    //     } else {
-    //         assert_eq!(true, false);
-    //     }
-    // }
+    #[test]
+    fn lexicon_match_scope_open_and_close_with_whitspace() {
+        let mut lexicon = Lexicon::new(true);
+        let source = "{ }".as_bytes();
 
-    // #[test]
-    // fn lexicon_can_resolve_multiple_characters() {
-    //     let token_match = setup_lexicon("parse");
+        let mut result = lexicon.advance(source[0]);
+        if let LexiconMatch::Resolved(token) = &result {
+            assert_eq!(true, matches!(token.state, TokenMeaning::OpenScope));
+        }
+        else {
+            assert!(false, "Result 1 was not resolved.")
+        }
 
-    //     assert_eq!(true, matches!(token_match, LexiconMatch::Resolved(_)));
+        result = lexicon.advance(source[1]);
+        assert_eq!(true, matches!(result, LexiconMatch::Unresolved()));
 
-    //     if let LexiconMatch::Resolved(token) = &token_match {
-    //         assert_eq!("parse", token.word.as_str());
-    //     }
-    // }
-
-    // #[test]
-    // fn lexicon_resolve_with_ambiguous_result_with_lowest_exact_match() {
-    //     let token_match = setup_lexicon("ambig");
-
-    //     assert_eq!(true, matches!(token_match, LexiconMatch::Resolved(_)));
-
-    //     if let LexiconMatch::Resolved(token) = &token_match {
-    //         assert_eq!("ambig", token.word.as_str());
-    //     }
-    // }
     
-    // #[test]
-    // fn lexicon_resolve_with_ambiguous_result_with_highest_exact_match() {
-    //     let token_match = setup_lexicon("ambiguous");
+        result = lexicon.advance(source[2]);
+        if let LexiconMatch::Resolved(token) = &result {
+            assert_eq!(true, matches!(token.state, TokenMeaning::CloseScope));
+        }
+        else {
+            assert!(false, "Result 3 was not resolved.")
+        }
 
-    //     assert_eq!(true, matches!(token_match, LexiconMatch::Resolved(_)));
+    }
 
-    //     if let LexiconMatch::Resolved(token) = &token_match {
-    //         assert_eq!("ambiguous", token.word.as_str());
-    //     }
-    // }
+    #[test]
+    fn lexicon_can_manage_eos() {
+        let mut lexicon = Lexicon::new(true);
+        let source = "findme".as_bytes();
+        let mut result = LexiconMatch::Illegal();
 
-    // #[test]
-    // fn lexicon_resolve_with_ambiguous_result_with_no_match() {
-    //     let token_match = setup_lexicon("ambigu");
+        for i in 0..6 {
+            result = lexicon.advance(source[i]);
+            assert_eq!(true, matches!(result, LexiconMatch::Unresolved()));  
+        }
+        
+        result = lexicon.end_of_source();
+        assert_eq!(true, matches!(result, LexiconMatch::Resolved(_)));  
+    }
 
-    //     assert_eq!(true, matches!(token_match, LexiconMatch::Unresolved()));
-    // }
+    #[test]
+    fn lexicon_match_multi_character_keyword() {
+        let mut lexicon = Lexicon::new(true);
+        let source = "findme".as_bytes();
+        let mut result = LexiconMatch::Illegal();
 
+        for i in 0..source.len() {
+            result = lexicon.advance(source[i]);
+            assert_eq!(true, matches!(result, LexiconMatch::Unresolved()));  
+        }
+        
+        result = lexicon.end_of_source();
+        assert_eq!(true, matches!(result, LexiconMatch::Resolved(_)));
+    }
 
+    #[test]
+    fn lexicon_can_match_ambiguous_matches_shortest() {
+        let mut lexicon = Lexicon::new(true);
+        let source = "findme".as_bytes();
+        let mut result = LexiconMatch::Illegal();
+
+        for i in 0..source.len() {
+            result = lexicon.advance(source[i]);
+            assert_eq!(true, matches!(result, LexiconMatch::Unresolved()));  
+        }
+        
+        result = lexicon.end_of_source();
+        if let LexiconMatch::Resolved(token) = &result {
+            assert_eq!(true, token.equals("findme".as_bytes()));
+        }
+        else {
+            assert!(false, "Result was not resolved.")
+        };
+    }
+
+    #[test]
+    fn lexicon_can_match_ambiguous_matches_longest() {
+        let mut lexicon = Lexicon::new(true);
+        let source = "findmetoo".as_bytes();
+        let mut result = LexiconMatch::Illegal();
+
+        for i in 0..source.len() {
+            result = lexicon.advance(source[i]);
+            assert_eq!(true, matches!(result, LexiconMatch::Unresolved()));  
+        }
+        
+        result = lexicon.end_of_source();
+        if let LexiconMatch::Resolved(token) = &result {
+            assert_eq!(true, token.equals("findmetoo".as_bytes()));
+        }
+        else {
+            assert!(false, "Result was not resolved.")
+        };
+    }
+
+    
+    #[test]
+    fn lexicon_can_match_ambiguous_matches_nothing() {
+        let mut lexicon = Lexicon::new(true);
+        let source = "findmet".as_bytes();
+        let mut result = LexiconMatch::Illegal();
+
+        for i in 0..source.len() {
+            result = lexicon.advance(source[i]);
+            assert_eq!(true, matches!(result, LexiconMatch::Unresolved()));  
+        }
+        
+        result = lexicon.end_of_source();
+        assert_eq!(true, matches!(result, LexiconMatch::Illegal()));  
+    }
 }
