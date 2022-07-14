@@ -2,12 +2,12 @@ use std::str;
 use std::cell::RefCell;
 
 use crate::lexicon::Lexicon;
+use crate::lexicon::LexiconMatch;
 use crate::token::Token;
 
 pub struct Tokenizer<'slice> {
     source: &'slice[u8],
     lexicon: RefCell<Lexicon>,
-    output: Vec<Token>
 }
 
 impl<'slice> Tokenizer<'slice> {
@@ -15,15 +15,30 @@ impl<'slice> Tokenizer<'slice> {
         Tokenizer { 
             source: source.as_bytes(),
             lexicon: RefCell::from(Lexicon::new(false)),
-            output: Vec::new()
         }
     }
 
-    pub fn tokenize(&mut self) {
+    pub fn tokenize(&mut self) -> Vec<Token> {
+        let mut tokens = Vec::<Token>::new();
+
         for token in self.source.iter() {
-            let match_value = self.lexicon.borrow_mut().advance(token.clone());
+            let result = self.lexicon.borrow_mut().advance(token.clone());
+
+            if let LexiconMatch::Resolved(token) = &result {
+                tokens.push(token.clone());
+            } else if let LexiconMatch::Illegal() = &result {
+                panic!("Illegal syntax!");
+            }
         }
 
-        //TODO: Handle remaining values, or implement some kind of EOF function inside lexicon.
+        let result = self.lexicon.borrow_mut().end_of_source();
+
+        if let LexiconMatch::Resolved(token) = &result {
+            tokens.push(token.clone());
+        } else if let LexiconMatch::Illegal() = &result {
+            panic!("Illegal syntax!");
+        }
+
+        return tokens;
     } 
 }

@@ -1,63 +1,22 @@
 mod tokenizer;
 mod token;
 mod lexicon;
-
-use std::fs;
-use std::path::PathBuf;
-use std::path::Path;
-
-use tokenizer::Tokenizer;
+mod commands;
+use commands::CommandList;
 
 fn main() {
-    //TODO AB 26/6: Empty args will still trigger the _ branch of this match.
-    //TODO AB 26/6: Deal with file name, so we can run "--run <file>.wf", there are 2 different arguments.
-    for arg in std::env::args() {
-        if arg.contains("wf.exe") {
-            continue;
-        }
+    let command_list = CommandList::new();
 
-        match arg.as_str() {
-            "--run" => println!("not implemented yet, whoops."),
-            "--tests" => run_tests(),
-            _ => println!("Argument {} was unknown", arg)
-        }
-    }
-}
+    //Find all our args, skip the path we're executing from.
+    let mut args: Vec<String> = std::env::args().collect();
+    let args_len = args.len();
+    args = args.into_iter().skip(1).take(args_len+1).collect();
 
-fn execute_file(file: PathBuf) {
-    let source = fs::read_to_string(file).unwrap();
-    let mut tokenizer = Tokenizer::new(&source);
-    tokenizer.tokenize();
-}
-
-fn run_tests() {
-    println!("Running tests, detecting test file...");
-    let test_folder_path = Path::new("./tests");
-
-    if !test_folder_path.is_dir() {
-        println!("No tests to run, tests folder was not found.");
+    if args.len() == 0 {
+        println!("wf.exe greets you, perhaps try a command, like:\n\twf.exe --tests\n\twf.exe --compile <file>\nBye, for now (^.^)/");
         return;
-    }
+    } 
 
-    let test_files = scan_test_directory(&test_folder_path);
-
-    for file in test_files {
-        println!("Found test file at {:?}", file);
-        execute_file(file);
-    }
-
-}
-
-fn scan_test_directory(test_directory: &Path) -> Vec<PathBuf> {
-    let mut found_files = Vec::new();
-
-    let paths = fs::read_dir(test_directory).unwrap();
-
-    //TODO AB 26/6: Deal with recursiveness, sub directories are ignore atm.
-    for path in paths {
-        found_files.push(path.unwrap().path());
-    }
-
-
-    return found_files;
+    let identifier = args.get(0).unwrap();
+    command_list.run(identifier, args.clone());
 }
