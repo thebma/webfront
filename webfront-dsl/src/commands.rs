@@ -66,7 +66,7 @@ impl Command for RunTestsCommand {
             println!("Found test file at {:?}", file);
 
             let mut command = CompileCommand { result_tokens: Vec::new() };
-            let command_args: Vec<String> = vec![file.into_os_string().into_string().unwrap()];
+            let command_args: Vec<String> = vec![String::new(), file.into_os_string().into_string().unwrap()];
             command.execute(&command_args);
 
             let command_clone = command.clone();
