@@ -1,6 +1,8 @@
 use std::fs;
 use std::path::Path;
 
+use chrono::Utc;
+
 use crate::tokenizer::Tokenizer;
 use crate::token::Token;
 
@@ -20,14 +22,15 @@ impl Command for CompileCommand {
     }
 
     fn execute(&mut self, args: &Vec<String>) {
-        if args.len() < 1 {
+        if args.len() < 2 {
             panic!("No args for the file to compile was given.");
         }
 
-        let file_path = args.get(0).unwrap();
+        let file_path = args.get(1).unwrap();
         println!("Compiling file {}...", file_path);
 
-        let source = fs::read_to_string(file_path).unwrap();
+        let source = fs::read_to_string(file_path)
+            .expect(["Could not read source for", file_path].join(" ").as_str());
         let mut tokenizer = Tokenizer::new(&source);
         self.result_tokens = tokenizer.tokenize();
     }
@@ -39,7 +42,7 @@ impl Command for RunTestsCommand {
         return identifier.trim() == "--tests";
     }
 
-    fn execute(&mut self, args: &Vec<String>) {
+    fn execute(&mut self, _: &Vec<String>) {
         println!("Running tests, detecting test file...");
 
         //Find our path.
@@ -74,6 +77,40 @@ impl Command for RunTestsCommand {
     }
 }
 
+pub struct DumpTokensCommand;
+
+impl Command for DumpTokensCommand {
+    fn is_this(&self, identifier: &str) -> bool {
+        return "--dump".eq(identifier);
+    }
+
+    fn execute(&mut self, args: &Vec<String>) {
+        if args.len() < 2 {
+            panic!("No args for the file to compile was given.");
+        }
+
+        let file_path = args.get(1).unwrap();
+        println!("Dumping file {}...", file_path);
+
+        let mut compile_command = CompileCommand { result_tokens: Vec::new() };
+        compile_command.execute(&args);
+
+        let tokens = compile_command.result_tokens;
+        
+        let dump_string: String = tokens
+            .into_iter()
+            .map(|token| { return [token.word.to_string(), format!("{:?}", token.state)].join(" :: "); } )
+            .collect::<Vec<String>>()
+            .join("\n");
+
+        fs::create_dir_all("/dumps/")
+            .expect("Could not create dumps folder.");
+
+        fs::write(format!("/dumps/tokens{:?}.", Utc::now().timestamp()), dump_string)
+            .expect("Could not create dump file.");
+    }
+}
+
 pub struct CommandList {
     commands: Vec<Box<dyn Command>>
 }
@@ -83,6 +120,7 @@ impl CommandList {
         let mut commands_vector = Vec::<Box<dyn Command>>::new();
         commands_vector.push(Box::new(CompileCommand { result_tokens: Vec::new() }));
         commands_vector.push(Box::new(RunTestsCommand { }));
+        commands_vector.push(Box::new(DumpTokensCommand { }));
 
         return CommandList {
             commands: commands_vector

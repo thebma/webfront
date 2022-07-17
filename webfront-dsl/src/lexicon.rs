@@ -97,7 +97,7 @@ impl Lexicon {
         //Loop over our matches, check if we have a direct match.
         if self.matches.len() > 0 {
             for potential_match in &self.matches {
-                if(potential_match.equals(&self.match_value)) {
+                if potential_match.equals(&self.match_value) {
                     let found_token = potential_match.clone();
                     return LexiconMatch::Resolved(found_token);
 
