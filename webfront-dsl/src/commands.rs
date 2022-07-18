@@ -103,10 +103,10 @@ impl Command for DumpTokensCommand {
             .collect::<Vec<String>>()
             .join("\n");
 
-        fs::create_dir_all("/dumps/")
+        fs::create_dir_all("dumps/")
             .expect("Could not create dumps folder.");
 
-        fs::write(format!("/dumps/tokens{:?}.", Utc::now().timestamp()), dump_string)
+        fs::write(format!("dumps/tokens_{:?}", Utc::now().timestamp()), dump_string)
             .expect("Could not create dump file.");
     }
 }

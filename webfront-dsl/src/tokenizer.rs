@@ -27,7 +27,7 @@ impl<'slice> Tokenizer<'slice> {
             if let LexiconMatch::Resolved(token) = &result {
                 tokens.push(token.clone());
             } else if let LexiconMatch::Illegal() = &result {
-                panic!("Illegal syntax!");
+                panic!("Illegal syntax");
             }
         }
 
@@ -36,7 +36,7 @@ impl<'slice> Tokenizer<'slice> {
         if let LexiconMatch::Resolved(token) = &result {
             tokens.push(token.clone());
         } else if let LexiconMatch::Illegal() = &result {
-            panic!("Illegal syntax!");
+            panic!("Illegal syntax at EOS!");
         }
 
         return tokens;
