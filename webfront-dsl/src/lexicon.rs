@@ -29,7 +29,10 @@ pub enum LexiconMatch {
     Unresolved(),
 
     // Used when the given characters does not match to anything and does not have any potential matches.
-    Illegal(), 
+    Illegal(),
+
+    // We matched nothing, we don't have any pending working to do.
+    Nothing(),
 }
 
 impl Lexicon {
@@ -94,6 +97,11 @@ impl Lexicon {
     }
 
     pub fn end_of_source(&self) -> LexiconMatch {
+        //We have not pending values left to EOS it out.
+        if self.match_value.len() == 0 {
+            return LexiconMatch::Nothing();
+        }
+
         //Loop over our matches, check if we have a direct match.
         if self.matches.len() > 0 {
             for potential_match in &self.matches {
